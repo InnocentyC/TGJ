@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 /// <summary>
 /// 全局流程用到的类型、常量和存档数据结构。
@@ -42,16 +43,52 @@ public class ChapterProgress
     public bool puzzleCleared;  // 本幕拼图是否已过
     public bool rhythmCleared;  // 本幕音游是否已过
 
+    // 本幕已收集的拼图碎片编号，按收集先后排列（编号 = PuzzleChapterConfig.pieces 的列表序号）
+    // 旧档反序列化后可能为 null，读取后要调 EnsureCollectedOrder() 补空
+    public List<int> collectedPieceOrder;
+
     /// <summary>整幕是否已通关（拼图 + 音游都过了）</summary>
     public bool IsCleared
     {
         get { return puzzleCleared && rhythmCleared; }
     }
 
+    /// <summary>保证收集列表存在（反序列化后要调一次）</summary>
+    public void EnsureCollectedOrder()
+    {
+        if (collectedPieceOrder == null)
+        {
+            collectedPieceOrder = new List<int>();
+        }
+    }
+
+    /// <summary>是否已收集指定编号的碎片</summary>
+    public bool HasCollectedPiece(int pieceIndex)
+    {
+        EnsureCollectedOrder();
+        return collectedPieceOrder.Contains(pieceIndex);
+    }
+
+    /// <summary>追加收集一块碎片（按收集顺序排在末尾）；重复收集返回 false</summary>
+    public bool AddCollectedPiece(int pieceIndex)
+    {
+        EnsureCollectedOrder();
+
+        if (collectedPieceOrder.Contains(pieceIndex))
+        {
+            return false;
+        }
+
+        collectedPieceOrder.Add(pieceIndex);
+        return true;
+    }
+
     public void Reset()
     {
         puzzleCleared = false;
         rhythmCleared = false;
+        EnsureCollectedOrder();
+        collectedPieceOrder.Clear();
     }
 }
 
@@ -92,6 +129,8 @@ public class ProgressSaveData
             {
                 chapters[i] = new ChapterProgress();
             }
+
+            chapters[i].EnsureCollectedOrder();
         }
     }
 

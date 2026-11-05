@@ -2,14 +2,18 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
 
-// 拼图管理器类：负责判定拼图是否完成、播放结果图演出、切换结果图片
+// 拼图管理器类：负责判定拼图是否完成、播放结果图演出、切换结果图片。
+// 由拼图弹窗驱动：Setup() 注入章节配置（总块数、结果图），
+// 碎片/槽位通过注册获得（不再全场景搜索）；ResetPuzzle 仅作调试用途。
 public class PuzzleManager : MonoBehaviour
 {
     [Header("拼图配置")]
-    public int totalPieces = 12;           // 需要正确放置的碎片总数，必须等于场景里实际槽位的数量
+    [Tooltip("需要正确放置的碎片总数；Setup 时会用章节配置覆盖")]
+    public int totalPieces = 12;
     public float snapDistance = 100f;     // 碎片吸附到槽位的最大距离（UI 像素）
 
     [Header("图片切换")]
+    [Tooltip("拼图完成后依次展示的结果图数组（按顺序一张张点着看）；sprite 可由章节配置覆盖")]
     public Image[] resultImages;          // 拼图完成后依次展示的结果图数组（按顺序一张张点着看）
     public Image resultImage;             // 当前正在展示的结果图（外部也可直接指定单张）
     public float fadeInDuration = 1f;     // 结果图淡入时长（秒）
@@ -25,6 +29,25 @@ public class PuzzleManager : MonoBehaviour
     private bool isPuzzleCompleted = false; // 本轮拼图是否已完成
     private bool isTransitioning = false;   // 是否正在播放淡入淡出过渡动画（避免动画期间重复触发）
 
+    // 本弹窗的槽位列表（Setup 时从子物体收集）
+    private CustomPuzzleSlot[] slots;
+
+    // 弹窗动态生成并注册的碎片列表
+    private readonly System.Collections.Generic.List<CustomPuzzleImage> registeredPieces =
+        new System.Collections.Generic.List<CustomPuzzleImage>();
+
+    /// <summary>本弹窗的槽位列表（碎片吸附用）</summary>
+    public CustomPuzzleSlot[] Slots
+    {
+        get { return slots; }
+    }
+
+    /// <summary>是否已经注册过槽位</summary>
+    public bool HasSlots
+    {
+        get { return slots != null && slots.Length > 0; }
+    }
+
     private void Start()
     {
         // 如果没手动指定 resultImage，就用结果图数组的第一张
@@ -34,16 +57,103 @@ public class PuzzleManager : MonoBehaviour
         }
 
         // 开局先把结果图隐藏并设为全透明，避免提前露出答案
+        HideResultImages();
+
+        // 给结果图挂上点击监听（用于拼完后点图看下一张）
+        AddClickEventListenerToResultImage();
+    }
+
+    /// <summary>
+    /// 由拼图弹窗注入章节配置：总块数取自配置、结果图 sprite 应用到本物体的结果图列表、
+    /// 收集本物体下所有槽位、清空碎片注册表。在弹窗 Show 时调用。
+    /// </summary>
+    public void Setup(PuzzleChapterConfig config)
+    {
+        // 结束协程，复位过渡状态（复用弹窗时可能上局还在播动画）
+        StopAllCoroutines();
+        isTransitioning = false;
+
+        if (config != null && config.pieces != null)
+        {
+            totalPieces = config.pieces.Length;
+        }
+
+        // 用配置里的结果图 sprite 覆盖到本弹窗预制体摆好的结果图上（两边都配了时以配置为准）
+        if (config != null && config.resultImages != null &&
+            resultImages != null && resultImages.Length > 0)
+        {
+            int count = Mathf.Min(config.resultImages.Length, resultImages.Length);
+            for (int i = 0; i < count; i++)
+            {
+                if (config.resultImages[i] != null)
+                {
+                    resultImages[i].sprite = config.resultImages[i];
+                }
+            }
+        }
+
+        // 收集本弹窗下的所有槽位（含未激活的）
+        slots = GetComponentsInChildren<CustomPuzzleSlot>(true);
+
+        // 清空碎片注册表（碎片由弹窗重新生成后逐个注册）
+        registeredPieces.Clear();
+
+        // 复位内部状态与结果图显示
+        placedPieces = 0;
+        isPuzzleCompleted = false;
+        currentImageIndex = 0;
+
+        if (resultImages != null && resultImages.Length > 0)
+        {
+            resultImage = resultImages[0];
+        }
+
+        HideResultImages();
+        AddClickEventListenerToResultImage();
+    }
+
+    /// <summary>弹窗生成一块碎片后注册进来，供完成判定和淡出演出使用</summary>
+    public void RegisterPiece(CustomPuzzleImage piece)
+    {
+        if (piece != null && !registeredPieces.Contains(piece))
+        {
+            registeredPieces.Add(piece);
+        }
+    }
+
+    /// <summary>弹窗销毁碎片后取消注册</summary>
+    public void UnregisterPiece(CustomPuzzleImage piece)
+    {
+        if (piece != null)
+        {
+            registeredPieces.Remove(piece);
+        }
+    }
+
+    // 把所有结果图隐藏并设为全透明
+    private void HideResultImages()
+    {
+        if (resultImages == null)
+        {
+            return;
+        }
+
+        foreach (Image image in resultImages)
+        {
+            if (image == null) continue;
+
+            image.gameObject.SetActive(false);
+            Color color = image.color;
+            color.a = 0f;
+            image.color = color;
+        }
+
         if (resultImage != null)
         {
-            resultImage.gameObject.SetActive(false);
             Color color = resultImage.color;
             color.a = 0f;
             resultImage.color = color;
         }
-
-        // 给结果图挂上点击监听（用于拼完后点图看下一张）
-        AddClickEventListenerToResultImage();
     }
 
     // 结果图片点击事件处理
@@ -120,13 +230,16 @@ public class PuzzleManager : MonoBehaviour
         if (isPuzzleCompleted || isTransitioning)
             return;
 
-        // 每次都全量重新统计：扫描场景里所有槽位，数出"非空且放对"的数量
-        placedPieces = 0;
-        CustomPuzzleSlot[] allSlots = FindObjectsOfType<CustomPuzzleSlot>();
-
-        foreach (CustomPuzzleSlot slot in allSlots)
+        if (!HasSlots)
         {
-            if (!slot.IsEmpty() && slot.IsPieceCorrect())
+            return;
+        }
+
+        // 全量重新统计：数出"非空且放对"的槽位数量
+        placedPieces = 0;
+        foreach (CustomPuzzleSlot slot in slots)
+        {
+            if (slot != null && !slot.IsEmpty() && slot.IsPieceCorrect())
             {
                 placedPieces++;
             }
@@ -156,8 +269,7 @@ public class PuzzleManager : MonoBehaviour
     {
         isTransitioning = true;
 
-        // 淡出所有拼图碎片（依赖每个碎片身上的 CanvasGroup，Awake 里会自动补）
-        CustomPuzzleImage[] allPieces = FindObjectsOfType<CustomPuzzleImage>();
+        // 淡出本弹窗注册的所有拼图碎片（依赖每个碎片身上的 CanvasGroup，Awake 里会自动补）
         float timer = 0f;
 
         while (timer < fadeOutDuration)
@@ -165,8 +277,10 @@ public class PuzzleManager : MonoBehaviour
             // 按时间进度把 alpha 从 1 插值到 0
             float alpha = Mathf.Lerp(1f, 0f, timer / fadeOutDuration);
 
-            foreach (CustomPuzzleImage piece in allPieces)
+            foreach (CustomPuzzleImage piece in registeredPieces)
             {
+                if (piece == null) continue;
+
                 CanvasGroup canvasGroup = piece.GetComponent<CanvasGroup>();
                 if (canvasGroup != null)
                 {
@@ -179,9 +293,12 @@ public class PuzzleManager : MonoBehaviour
         }
 
         // 淡出结束后彻底隐藏所有碎片
-        foreach (CustomPuzzleImage piece in allPieces)
+        foreach (CustomPuzzleImage piece in registeredPieces)
         {
-            piece.gameObject.SetActive(false);
+            if (piece != null)
+            {
+                piece.gameObject.SetActive(false);
+            }
         }
 
         // 显示结果图并从透明淡入到不透明
@@ -212,23 +329,28 @@ public class PuzzleManager : MonoBehaviour
         // 通知外部：过渡动画播完了
         onImageTransitionComplete?.Invoke();
     }
+
     // 重置拼图：清空所有槽位、还原碎片位置与透明度、隐藏结果图，恢复到开局状态
+    // 注意：正常流程不再调用（关闭弹窗要保留摆放进度），仅供调试
     public void ResetPuzzle()
     {
         // 清空所有槽位里已放置的碎片
-        CustomPuzzleSlot[] allSlots = FindObjectsOfType<CustomPuzzleSlot>();
-        foreach (CustomPuzzleSlot slot in allSlots)
+        if (HasSlots)
         {
-            if (!slot.IsEmpty())
+            foreach (CustomPuzzleSlot slot in slots)
             {
-                slot.RemovePiece();
+                if (slot != null && !slot.IsEmpty())
+                {
+                    slot.RemovePiece();
+                }
             }
         }
 
-        // 把所有碎片恢复显示、恢复不透明、回到初始位置
-        CustomPuzzleImage[] allPieces = FindObjectsOfType<CustomPuzzleImage>();
-        foreach (CustomPuzzleImage piece in allPieces)
+        // 把所有碎片恢复显示、恢复不透明、回到初始位置（ResetPosition 会同时解除锁定）
+        foreach (CustomPuzzleImage piece in registeredPieces)
         {
+            if (piece == null) continue;
+
             CanvasGroup canvasGroup = piece.GetComponent<CanvasGroup>();
             if (canvasGroup != null)
             {
@@ -239,13 +361,7 @@ public class PuzzleManager : MonoBehaviour
         }
 
         // 结果图重新隐藏并设为透明
-        if (resultImage != null)
-        {
-            resultImage.gameObject.SetActive(false);
-            Color color = resultImage.color;
-            color.a = 0f;
-            resultImage.color = color;
-        }
+        HideResultImages();
 
         // 状态位全部复位
         placedPieces = 0;

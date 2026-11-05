@@ -37,6 +37,16 @@ public class GameSettings : ScriptableObject
     [Tooltip("音游判定延迟，单位毫秒，正数=判定往后推，负数=判定提前")]
     public float rhythmOffsetMs = 0f;
 
+    [Tooltip("音频输出延迟补偿，单位毫秒（蓝牙耳机等硬件延迟大时调大）")]
+    public float audioLatencyMs = 0f;
+
+    [Tooltip("下落速度：音符从出现点到判定线的时间（秒），越小越快")]
+    public float approachTime = 1.5f;
+
+    [Tooltip("按键音效音量，0~1，实际输出还会乘 masterVolume")]
+    [Range(0f, 1f)]
+    public float keySoundVolume = 0.6f;
+
     [Tooltip("音游各轨道的按键，长度固定为 LaneCount(7)")]
     public KeyCode[] laneKeys = (KeyCode[])DefaultLaneKeys.Clone();
 
@@ -110,6 +120,9 @@ public class GameSettings : ScriptableObject
     {
         masterVolume = 0.8f;
         rhythmOffsetMs = 0f;
+        audioLatencyMs = 0f;
+        approachTime = 1.5f;
+        keySoundVolume = 0.6f;
         laneKeys = (KeyCode[])DefaultLaneKeys.Clone();
     }
 

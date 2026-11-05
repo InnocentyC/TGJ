@@ -63,8 +63,11 @@ NoteController 按公式更新 Y
 - **Perfect/Great/Miss 图片（不做预制体）**：场景里固定一个 `Image`，平时隐藏，
   判定时换 sprite + 淡出/缩放动画（协程 + CanvasGroup）。
 - **轨道按键框**：7 个固定 `Image`，按下时切换颜色。
-- **按键音**：7 轨共用一个 AudioSource。**音色按章节区分**：每章的音游配置里
-  指定自己的按键音 Clip（随谱面一起配置），开局加载当前章节的音色；
+- **按键音**：一个 AudioSource 即可（切换 Clip 播放）。
+  **音色跟音符走，不跟轨道走**：谱面第三列"音高"是打击音编号，
+  Inspector 里有一个可自由增减的**打击音队列**（List，数量不定，按编号顺序排），
+  命中音符时按其音高编号取队列里的 Clip 播放；空按用 0 号音兜底。
+  **章节层**：每个谱面的这组音色不一样，换章即换整组；
   `keySoundVolume` 仍是全局设置。
 
 ## 五、配置项划分
@@ -77,6 +80,7 @@ NoteController 按公式更新 Y
 | `audioLatencyMs` | float，0 | 音频输出延迟补偿（蓝牙耳机等硬件延迟） |
 | `approachTime` | float，1.5 秒 | 下落速度：音符从出现点到判定线的时间，越小越快 |
 | `keySoundVolume` | float，0.6 | 按键音效音量（实际输出乘 masterVolume） |
+| `laneKeys`（已有）+ 设置面板键位调整 | KeyCode[7] | 存档里已存 7 轨键位，需在设置面板加"改键"入口：点击某轨道 → 等待玩家按下新键 → 写回 `laneKeys` 并存盘（含冲突检测：同一键不能绑两条轨道） |
 
 `masterVolume`、`laneKeys` 已存在于 `GameSettings`，不重复添加。
 
@@ -112,7 +116,7 @@ NoteController 按公式更新 Y
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `endBufferSeconds` | 2.0 | 最后一个音符判定后多久出结算 |
+| `endBufferSeconds` | 2.0 | 音乐播完后多久出结算（无音乐时：最后一个音符判定后） |
 | `scorePerPerfect` / `scorePerGreat` | 1000 / 500 | 计分权重（连击加成系数另定） |
 
 划分标准：玩家会调、要存盘 → `GameSettings`；只有开发者调 → Inspector；
@@ -129,7 +133,9 @@ NoteController 按公式更新 Y
 ## 七、CSV 接口约定
 
 - 路径：`Resources/Chart/Chart_<幕名>`。**每章谱面各不相同**，由章节数据 /
-  `GameFlowConfig` 指定本章的谱面路径与按键音 Clip，`RhythmGameManager` 开局按当前章节加载。
+  `GameFlowConfig` 指定本章的谱面路径与**打击音队列**，`RhythmGameManager` 开局按当前章节加载。
+- 格式：`时间,轨道,音高` 三列。**音高 = 打击音编号（Inspector 打击音队列的下标），
+  与轨道解绑**——同轨道可打不同音色，同音色可出现在不同轨道；同按的两行可共用同一音高。
 - 解析：`Resources.Load<TextAsset>` 读入（随包发布更稳）；
   逐行 Trim → 跳过 `#` 与空行 → 按 `,` 分割 →
   `double.Parse(时间, CultureInfo.InvariantCulture)`（**必须 InvariantCulture**，防小数点兼容问题）→
@@ -138,7 +144,8 @@ NoteController 按公式更新 Y
 
 ## 八、结算流程
 
-1. 所有 note 出队完毕且 `songTime > 最后一个 hitTime + endBufferSeconds` → 进入 Result。
+1. 所有 note 出队完毕且**音乐播完后 `endBufferSeconds` 秒**（用音乐的原始时间判断）→ 进入 Result；
+   没配音乐时退回旧逻辑：最后一个音符判定完 `endBufferSeconds` 秒。
 2. `ScoreManager` 汇总结算数据：`score`、`combo`（最大连击）、`perfect` / `great` / `miss` 计数，
    以及综合评级 **S / A / B / C / D**（结算界面用图片显示）。
 3. 评级的具体划分标准（按分数还是按准确率、各档阈值）**待与策划确定**，代码上
@@ -161,3 +168,43 @@ NoteController 按公式更新 Y
 - Fast/Late 显示、打击粒子特效（独立小对象池）
 - 长按 / 滑键等键型
 - 判定难度选项
+
+---
+
+## 十一、实现说明（已落地）
+
+代码在 `Assets/Scripts/Rhythm/` 下：`NoteData`、`ChartLoader`、`RhythmConductor`、
+`NoteController`、`NotePool`、`JudgementManager`、`ScoreManager`、`RhythmSceneUI`、`RhythmGameManager`。
+`GameSettings` 新增 `audioLatencyMs` / `approachTime` / `keySoundVolume` 三个存档项。
+
+### 场景搭建（美术场景已就绪）
+
+1. 把 `RhythmGameManager` 挂到美术搭好的音游场景物体上。
+2. Inspector 拖引用：`scoreText` / `comboText`（分数、连击文本）、
+   `judgementImage`（判定弹出图）、`notePrefab`（音符预制体）、`noteParent`（音符容器）。
+3. 对齐布局数值：`judgeLineY`（判定线 Y）、`spawnY`（出现点 Y）、`laneXPositions[7]`（各轨道中心 X，Canvas 局部坐标）。
+4. 拖三档判定图 `perfectSprite` / `greatSprite` / `missSprite`（弹出时换图 + 淡出）。
+5. 配歌曲 `musicClip`、按键音 `laneKeyClips[7]`，运行。
+
+结算面板暂未做：打完后 **Console 打 log**（评级/分数/连击/三档计数/准确率），
+延迟 `resultAdvanceDelay` 秒后自动调 `GameProgressManager.NotifyRhythmCompleted()` 回主线；
+等结算 Panel 做好后把自动推进改为按钮触发。
+
+### 默认数值（后续直接改 Inspector / 配置，不用动代码）
+
+| 项 | 默认值 | 位置 |
+|---|---|---|
+| 判定窗口 Perfect / Great / Miss | ±50 / ±100 / ±150 ms | Inspector |
+| 计分 | Perfect 1000、Great 500，连击加成封顶 +20% | 代码内（BasePoint） |
+| 评级 S/A/B/C 阈值 | 准确率 95% / 90% / 80% / 70%，其余 D（待策划定稿） | Inspector `rankThresholds` |
+| 准确率 | Perfect=1、Great=0.5、Miss=0 加权 | 代码内 |
+| 下落时间 approachTime | 1.5 秒 | GameSettings 存档 |
+| 按键音量 / 音频延迟 / 判定偏移 | 0.6 / 0 / 0 | GameSettings 存档 |
+| 池预热 | 20 个，可自动扩容 | Inspector |
+
+### 每章换谱换音色
+
+`RhythmGameManager.chartResourcePath` 留空时按当前幕号自动取 `Chart/Chart_Act{幕号}`；
+也可手动指定。`laneKeyClips[7]` 即本章的 7 轨音色，每章场景各配各的。
+没配音色时内置 7 个不同音高的合成音（五声音阶），方便先跑通测试。
+

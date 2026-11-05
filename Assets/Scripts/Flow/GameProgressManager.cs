@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -232,6 +233,79 @@ public class GameProgressManager : MonoBehaviour
     public void BackToStartMenu()
     {
         LoadScene(config.GetPhaseScene(GamePhase.None));
+    }
+
+    // ---------------- 背包接口（拼图碎片收集，由对话/探索系统调用） ----------------
+
+    /// <summary>
+    /// 收集一块拼图碎片（追加到该章收集顺序末尾，立即落盘）。
+    /// 只允许在对应幕的探索中收集；重复收集返回 false。
+    /// pieceIndex 对应 PuzzleChapterConfig.pieces 的列表序号。
+    /// </summary>
+    public bool CollectPiece(int actIndex, int pieceIndex)
+    {
+        if (Phase != GamePhase.Act)
+        {
+            Debug.LogWarning("[GameProgressManager] 当前不在幕内，无法收集碎片");
+            return false;
+        }
+
+        if (actIndex != ActIndex)
+        {
+            Debug.LogWarning("[GameProgressManager] 只能收集当前章节（第" + ActNumber + "幕）的碎片");
+            return false;
+        }
+
+        if (actIndex < 0 || actIndex >= data.chapters.Length)
+        {
+            return false;
+        }
+
+        bool added = data.chapters[actIndex].AddCollectedPiece(pieceIndex);
+
+        if (added)
+        {
+            SaveProgress();
+            RaiseProgressChanged();
+            Debug.Log("[GameProgressManager] 第" + (actIndex + 1) + "幕收集碎片 #" + pieceIndex);
+        }
+
+        return added;
+    }
+
+    /// <summary>某章是否已收集指定编号的碎片</summary>
+    public bool HasPiece(int actIndex, int pieceIndex)
+    {
+        if (actIndex < 0 || actIndex >= data.chapters.Length)
+        {
+            return false;
+        }
+
+        return data.chapters[actIndex].HasCollectedPiece(pieceIndex);
+    }
+
+    /// <summary>某章已收集碎片的编号列表（按收集先后排列，只读）</summary>
+    public IReadOnlyList<int> GetCollectedPieces(int actIndex)
+    {
+        if (actIndex < 0 || actIndex >= data.chapters.Length)
+        {
+            return Array.Empty<int>();
+        }
+
+        data.chapters[actIndex].EnsureCollectedOrder();
+        return data.chapters[actIndex].collectedPieceOrder;
+    }
+
+    /// <summary>某章已收集的碎片数量</summary>
+    public int GetCollectedCount(int actIndex)
+    {
+        if (actIndex < 0 || actIndex >= data.chapters.Length)
+        {
+            return 0;
+        }
+
+        data.chapters[actIndex].EnsureCollectedOrder();
+        return data.chapters[actIndex].collectedPieceOrder.Count;
     }
 
     // ---------------- 各阶段完成通知（由玩法系统调用） ----------------
