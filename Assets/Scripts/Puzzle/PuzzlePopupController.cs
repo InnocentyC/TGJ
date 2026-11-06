@@ -150,7 +150,14 @@ public class PuzzlePopupController : PopupPanel
                 return;
             }
 
-            piece.Setup(puzzleManager, pieceIndex, pieceIndex, config.pieces[pieceIndex].image);
+            // 注入托盘区域（松手落在这个矩形内 = 放回待摆放区）
+            piece.TrayZone = trayRoot as RectTransform;
+
+            // 双尺寸：板上完整尺寸 + 托盘缩小尺寸
+            Vector2 boardSize = ResolvePieceSize(config.pieces[pieceIndex]);
+            Vector2 traySize = boardSize * Mathf.Clamp(config.trayPieceScale, 0.1f, 1f);
+            piece.Setup(puzzleManager, pieceIndex, pieceIndex,
+                config.pieces[pieceIndex].image, boardSize, traySize);
             puzzleManager.RegisterPiece(piece);
             spawnedPieces.Add(piece);
         }
@@ -168,6 +175,24 @@ public class PuzzlePopupController : PopupPanel
         }
 
         return null;
+    }
+
+    // 解析一块碎片的最终显示尺寸：
+    // 单独填了 Size 就用 Size；没填就用 sprite 原始像素尺寸；
+    // 最后统一乘全局等比缩放系数 pieceScale
+    private Vector2 ResolvePieceSize(PuzzleChapterConfig.PieceDefinition def)
+    {
+        Vector2 size = def.size;
+
+        if (size.x <= 0f || size.y <= 0f)
+        {
+            // 宽高没填全：整块用 sprite 原始像素尺寸（等比缩放系数照常生效）
+            size = def.image != null
+                ? new Vector2(def.image.rect.width, def.image.rect.height)
+                : Vector2.zero;
+        }
+
+        return size * Mathf.Max(0.0001f, config.pieceScale);
     }
 
     // 在子层级里找名字包含关键字的第一个节点

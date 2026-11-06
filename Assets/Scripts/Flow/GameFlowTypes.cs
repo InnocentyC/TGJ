@@ -10,7 +10,7 @@ using System.Collections.Generic;
 public static class GameRules
 {
     /// <summary>总幕数：三幕</summary>
-    public const int ActCount = 3;
+    public const int ActCount = 4;
 }
 
 /// <summary>

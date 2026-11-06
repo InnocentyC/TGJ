@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c70918ce452b4f840931997eda44d3a1, type: 3}
+  m_Name: PuzzleChapterConfig_4
+  m_EditorClassIdentifier: 
+  pieces:
+  - image: {fileID: 21300000, guid: 7b9a7b0a5715ccc44b30a2e48cf5048e, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: a9cf122b7fce01e49a9ec276f166b8d9, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 3830e85eb6dc60640b4169150d943076, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: e945bfbc8685844458def453ee0349ae, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: d5894b5f0279e654ab8e6828db06d5f8, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 29c5f7d9cbf936f4596fa8e726bb382e, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 9bf72f261a08d034ab0261b96f6e1134, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 188b22df4e8b3af4bad892a1263c380d, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 146a6f4a003eec34696315b3197265f6, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 86124168c5a3f314aa1a64ef91984ef4, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 05f0f8ed41b13b443a75acbf2de6392c, type: 3}
+    size: {x: 0, y: 0}
+  - image: {fileID: 21300000, guid: 9140355a984812743b93517cfb956f5b, type: 3}
+    size: {x: 0, y: 0}
+  pieceScale: 0.25
+  trayPieceScale: 0.6
+  resultImages:
+  - {fileID: 21300000, guid: c680407fc05282343b42bffb411965f0, type: 3}
+  pieceTemplate: {fileID: 8568025490178724851, guid: ee5472a3cb112664ebb1bc14330e70b2, type: 3}
