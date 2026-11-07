@@ -1,0 +1,13 @@
+﻿NPCName,SpeakerName,Dialogue,PuzzlePiece,SceneNumber
+##这个是新表格。npc为与之交互的对象，如果为空，则为玩家自白,SpeakerName需填玩家,,,
+##SpeakerName为此时正在说话的人名,,,,
+##Dialogue为对话内容，换行请使用\n,,,,
+##PuzzlePiece为对话后获得的拼图碎片，如果为空，则不获得拼图碎片.编号按照美术老师发的文件名。,,,,
+##SceneNumber为对话后进入的场景编号（几幕）,,,,
+##如果使用的是txt编辑，上述不同字段之间请用英文逗号分隔。其他内容请勿出现英文逗号。,,,,
+,,,,
+,,,,
+,,,,
+,玩家,"I’m making arrangements for the funeral of a 19-year-old girl. She died in a car accident a week ago. No one has come forward to claim her body, so I want to make sure she gets a dignified farewell. Her name was Elena.",,
+,玩家,"The police told me, with regret, that they had been unable to find any information about her relatives. The only numbers saved on her phone belonged to her landlord and the owner of the convenience store where she worked. Her coworkers barely knew her, and her neighbors knew her only well enough to nod in passing. Now that the funeral arrangements are complete, there isn’t a single person who can come and lay flowers for the poor girl.",,
+,玩家,A broken music box sits in front of me now. It belonged to Elena. It was shattered in the same crash that took her life. I imagine it must have held a timeless melody. I want to honor her memory with that very tune.,,1

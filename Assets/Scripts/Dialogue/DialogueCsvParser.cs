@@ -5,15 +5,20 @@ using UnityEngine;
 /// <summary>
 /// 对话 CSV 解析器（纯静态工具，不挂在物体上）。
 ///
-/// CSV 约定：
-///   第 1 列 = 说话人，第 2 列 = 内容，第 3 列 = 第几幕（不填默认第 1 幕）
+/// CSV 约定（与策划表格一致）：
+///   NPCName, SpeakerName, Dialogue, PuzzlePiece, SceneNumber
+///   PuzzlePiece：这句说完后获得的碎片编号，空 = 不获得
+///   SceneNumber：这句说完后切换到的场景编号，空 = 不切换
 ///   第一行为表头（可关）；字段里带逗号或换行就用双引号包起来，引号内写两个引号表示一个引号
 ///   行首是 # 或 // 的行当注释跳过；空行跳过
 /// </summary>
 public static class DialogueCsvParser
 {
-    /// <summary>幕号解析不出来时的兜底值</summary>
-    public const int DefaultAct = 1;
+    /// <summary>碎片编号解析不出来/留空时的兜底值（-1 = 不获得碎片）</summary>
+    public const int DefaultPuzzlePiece = -1;
+
+    /// <summary>场景编号留空时的兜底值（0 = 不切换场景）</summary>
+    public const int DefaultSceneNumber = 0;
 
     /// <summary>
     /// 把 CSV 文本解析成对白列表。
@@ -22,9 +27,11 @@ public static class DialogueCsvParser
         string text,
         bool hasHeaderRow = true,
         char delimiter = ',',
-        int speakerColumn = 0,
-        int contentColumn = 1,
-        int actColumn = 2)
+        int npcColumn = 0,
+        int speakerColumn = 1,
+        int contentColumn = 2,
+        int puzzleColumn = 3,
+        int sceneColumn = 4)
     {
         List<DialogueLine> result = new List<DialogueLine>();
         List<string[]> rows = ParseRows(text, delimiter);
@@ -52,11 +59,13 @@ public static class DialogueCsvParser
                 continue;
             }
 
+            string npcName = GetCell(row, npcColumn).Trim();
             string speaker = GetCell(row, speakerColumn).Trim();
             string content = NormalizeContent(GetCell(row, contentColumn));
-            int act = ParseAct(GetCell(row, actColumn), i + 1);
+            int puzzlePiece = ParseInt(GetCell(row, puzzleColumn), DefaultPuzzlePiece, "碎片编号", i + 1);
+            int sceneNumber = ParseInt(GetCell(row, sceneColumn), DefaultSceneNumber, "场景编号", i + 1);
 
-            result.Add(new DialogueLine(speaker, content, act));
+            result.Add(new DialogueLine(npcName, speaker, content, puzzlePiece, sceneNumber));
         }
 
         return result;
@@ -211,22 +220,29 @@ public static class DialogueCsvParser
         return content;
     }
 
-    /// <summary>幕号解析，失败就用 DefaultAct 并打一条警告</summary>
-    private static int ParseAct(string raw, int rowNumber)
+    /// <summary>数字列解析，失败就用 fallback 并打一条警告</summary>
+    private static int ParseInt(string raw, int fallback, string columnName, int rowNumber)
     {
-        if (string.IsNullOrEmpty(raw))
+        if (string.IsNullOrEmpty(raw) || string.IsNullOrEmpty(raw.Trim()))
         {
-            return DefaultAct;
+            return fallback;
         }
 
-        int act;
+        int value;
 
-        if (int.TryParse(raw.Trim(), out act) && act >= 0)
+        if (int.TryParse(raw.Trim(), out value))
         {
-            return act;
+            return value;
         }
 
-        Debug.LogWarning(string.Format("对话 CSV 第 {0} 行的幕号「{1}」不是数字，已按第 {2} 幕处理", rowNumber, raw, DefaultAct));
-        return DefaultAct;
+        // 兼容 Excel 导出时整数被写成 1.0 的情况
+        float f;
+        if (float.TryParse(raw.Trim(), out f) && f == (int)f)
+        {
+            return (int)f;
+        }
+
+        Debug.LogWarning(string.Format("对话 CSV 第 {0} 行的{1}「{2}」不是数字，已按 {3} 处理", rowNumber, columnName, raw, fallback));
+        return fallback;
     }
 }

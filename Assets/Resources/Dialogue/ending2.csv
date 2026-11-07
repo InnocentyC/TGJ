@@ -1,0 +1,46 @@
+NPCName,SpeakerName,Dialogue,PuzzlePiece,SceneNumber
+##这个是新表格。npc为与之交互的对象，如果为空，则为玩家自白,SpeakerName需填玩家,,,
+##SpeakerName为此时正在说话的人名,,,,
+##Dialogue为对话内容，换行请使用\n,,,,
+##PuzzlePiece为对话后获得的拼图碎片，如果为空，则不获得拼图碎片.编号按照美术老师发的文件名。,,,,
+##SceneNumber为对话后进入的场景编号（几幕）,,,,
+##如果使用的是txt编辑，上述不同字段之间请用英文逗号分隔。其他内容请勿出现英文逗号。,,,,
+,,The day of the funeral.,,
+,,"It was a beautiful day. Sunlight broke through the clouds and fell across the cemetery lawn. A breeze stirred the treetops, carrying a few yellow leaves with it.",,2
+,,Annie was the first to arrive.,,3
+,,"She had that old guitar slung over her back, its body marked with little scuffs. Her usual easy smile was gone. She stood quietly beside the headstone, looking down as she wiped the strings.",,
+,,Maria arrived soon after.,,4
+,,"She was neatly dressed and carrying her violin. She looked much as she always did, only quieter. She set the case down, opened it gently, and checked the bow and strings.",,
+,,The shopkeeper came too.,,5
+,,"He carried the music box carefully in both hands. He’d repaired it. The old marks were still on the case, but the parts inside could finally turn again.",,6
+,,He crouched in front of the headstone and set the music box on the ground.,,
+,,"They arrived one by one, bringing their instruments and memories that had grown distant but never quite faded.",,
+,,Martin was the last to arrive.,,7
+,,"He was neatly dressed. A social worker helped him onto the piano bench, just as he’d asked. He wanted to play for Elena one last time.",,
+,,"He moved slowly, but he didn’t seem as lost as he usually did.",,
+,,It seemed like a long time since he’d prepared for anything with such care.,,
+,,Everyone was there.,,
+,,They said little to one another. Each found a place and stood quietly.,,
+,,"Looking at them, I could hardly believe it.",,
+,,So many people really did remember Elena.,,
+,,She’d known all these people. She’d left a trace of herself in so many lives.,,
+,,I’d always thought her story was long over.,,
+,,But now it felt as though so many things were beginning again.,,
+,,The music box was the first to play.,,8
+,,"It played a soft, simple melody.",,
+,,"The shopkeeper stood at the headstone, looking down at the little box. Its metal mechanism turned slowly, repeating the familiar notes as if it were trying to piece together a forgotten time.",,
+,,Annie picked up the melody.,,
+,,"She plucked the strings. The guitar sounded a little rough, but gentle.",,
+,,She made no show of it as she might at a performance. She just kept her head down and played the melody over and over.,,
+,,Then Maria began to play her violin.,,
+,,"The clear, lingering notes carried through the quiet cemetery and settled around us.",,
+,,"Her fingers moved along the strings, her bow rising and falling gently. She’d practiced those movements countless times in the music room.",,
+,,Martin joined in.,,
+,,"He wasn’t used to playing in front of people, but he listened carefully and kept time with the others. He was a little rusty and sometimes fell half a beat behind, but he kept playing.",,
+,,"Different instruments, different sounds. Sometimes they didn’t quite fit together.",,
+,,"But in the end, they came together.",,9
+,,No one conducted. No one asked for the music to be perfect.,,
+,,They just played what they could for someone who was gone.,,
+,,It struck me that this might be what Elena had wanted.,,
+,,I walked toward them.,,
+

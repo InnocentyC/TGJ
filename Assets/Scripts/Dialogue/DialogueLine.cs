@@ -3,30 +3,39 @@ using UnityEngine.Events;
 
 /// <summary>
 /// 一句对白的数据。CSV 里的一行 = 一个 DialogueLine。
-/// 目前只有三个字段：说话人、内容、属于第几幕（线性流程，没有分支/跳转 id）。
+/// 字段对应表格：NPCName / SpeakerName / Dialogue / PuzzlePiece / SceneNumber。
+/// 线性流程，没有分支/跳转 id。
 /// </summary>
 [System.Serializable]
 public class DialogueLine
 {
-    [Tooltip("说话人；留空表示旁白")]
+    [Tooltip("与之交互的 NPC；留空表示这句是玩家自白/旁白")]
+    public string npcName = "";
+
+    [Tooltip("此时正在说话的人名；留空表示旁白")]
     public string speaker = "";
 
     [TextArea(2, 5)]
     [Tooltip("对白内容。CSV 里写 \\n 会被转成真正的换行")]
     public string content = "";
 
-    [Tooltip("属于第几幕，从 1 开始；0 表示不属于任何幕（开场/通用台词）")]
-    public int act = 1;
+    [Tooltip("这句说完后获得的拼图碎片编号（按美术文件名，从 1 开始）；-1 表示不获得")]
+    public int puzzlePiece = -1;
+
+    [Tooltip("这句说完后切换到的场景编号；0 表示不切换（保持在当前场景）")]
+    public int sceneNumber = 0;
 
     public DialogueLine()
     {
     }
 
-    public DialogueLine(string speaker, string content, int act)
+    public DialogueLine(string npcName, string speaker, string content, int puzzlePiece, int sceneNumber)
     {
+        this.npcName = npcName;
         this.speaker = speaker;
         this.content = content;
-        this.act = act;
+        this.puzzlePiece = puzzlePiece;
+        this.sceneNumber = sceneNumber;
     }
 
     /// <summary>是否有说话人（false 就是旁白）</summary>

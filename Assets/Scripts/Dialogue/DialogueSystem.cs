@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Events;
 
 /// <summary>
@@ -31,23 +32,22 @@ public class DialogueSystem : MonoBehaviour
     [Tooltip("csvFile 为空时的兜底路径（Resources 下，不带扩展名）")]
     public string resourcesPath = "Dialogue/dialogue";
 
-    [Tooltip("CSV 第一列是表头（说话人,内容,幕）就打钩")]
+    [Tooltip("CSV 第一列是表头（NPCName,SpeakerName,Dialogue,PuzzlePiece,SceneNumber）就打钩")]
     public bool hasHeaderRow = true;
 
     [Tooltip("CSV 分隔符，默认英文半角逗号。中文逗号「，」不是分隔符，内容里直接写就行，不用包引号")]
     public char delimiter = ',';
 
     [Header("CSV 列序号（从 0 开始）")]
-    public int speakerColumn = 0;
-    public int contentColumn = 1;
-    public int actColumn = 2;
+    public int npcColumn = 0;
+    public int speakerColumn = 1;
+    public int contentColumn = 2;
+    public int puzzleColumn = 3;
+    public int sceneColumn = 4;
 
     [Header("播放")]
-    [Tooltip("开局自动播放；关掉则由外部调 StartDialogue() 触发")]
+    [Tooltip("开局自动播放；关掉则由外部（如 DialogueSceneFlow）调 StartDialogue() 触发")]
     public bool playOnStart = true;
-
-    [Tooltip("播放第几幕（从 1 开始）；0 或负数 = 按 CSV 顺序播放全部")]
-    public int playAct = 0;
 
     [Tooltip("组件 Awake 时就解析 CSV（关掉则等第一次 StartDialogue 再解析）")]
     public bool loadOnAwake = true;
@@ -102,6 +102,9 @@ public class DialogueSystem : MonoBehaviour
     [Tooltip("鼠标左键点击也能推进")]
     public bool acceptMouseClick = true;
 
+    [Tooltip("点在 UI（按钮、面板等）上的点击不推进对话，防止点按钮时对话被翻页")]
+    public bool ignoreClicksOverUI = true;
+
     [Tooltip("跳过/翻页后的输入冷却，防止一次点击连翻两句")]
     public float inputCooldown = 0.08f;
 
@@ -120,6 +123,7 @@ public class DialogueSystem : MonoBehaviour
     private int currentIndex = -1;
     private bool isActive;
     private bool isTyping;
+    private bool isPaused;
     private Coroutine typingCoroutine;
     private float cooldownTimer;
     private readonly StringBuilder typedBuilder = new StringBuilder();
@@ -134,6 +138,12 @@ public class DialogueSystem : MonoBehaviour
     public bool IsTyping
     {
         get { return isTyping; }
+    }
+
+    /// <summary>对话是否被外部暂停（拼图/设置等面板打开时）。暂停时打字停住、输入忽略</summary>
+    public bool IsPaused
+    {
+        get { return isPaused; }
     }
 
     /// <summary>当前播放到第几句（0 起，-1 表示还没开始）</summary>
@@ -204,7 +214,7 @@ public class DialogueSystem : MonoBehaviour
     {
         if (playOnStart)
         {
-            StartDialogue(playAct);
+            StartDialogue();
         }
     }
 
@@ -215,7 +225,7 @@ public class DialogueSystem : MonoBehaviour
             cooldownTimer -= DeltaTime;
         }
 
-        if (!isActive || cooldownTimer > 0f)
+        if (!isActive || isPaused || cooldownTimer > 0f)
         {
             return;
         }
@@ -259,25 +269,25 @@ public class DialogueSystem : MonoBehaviour
         }
 
         allLines = asset != null
-            ? DialogueCsvParser.Parse(asset.text, hasHeaderRow, delimiter, speakerColumn, contentColumn, actColumn)
+            ? DialogueCsvParser.Parse(asset.text, hasHeaderRow, delimiter, npcColumn, speakerColumn, contentColumn, puzzleColumn, sceneColumn)
             : new List<DialogueLine>();
     }
 
     /// <summary>
-    /// 开始播放。act 从 1 开始；传 0 或负数表示按 CSV 顺序播放全部。
+    /// 开始播放：按 CSV 顺序从头播到尾。场景切换/碎片发放由 DialogueSceneFlow 按每句的字段结算。
     /// </summary>
-    public void StartDialogue(int act = 0)
+    public void StartDialogue()
     {
         if (allLines == null || allLines.Count == 0)
         {
             LoadCsv();
         }
 
-        playingLines = BuildPlayList(act);
+        playingLines = new List<DialogueLine>(allLines);
 
         if (playingLines.Count == 0)
         {
-            Debug.LogWarning(string.Format("对话系统：第 {0} 幕没有可播放的句子", act), this);
+            Debug.LogWarning("对话系统：CSV 里没有可播放的句子", this);
             return;
         }
 
@@ -353,6 +363,12 @@ public class DialogueSystem : MonoBehaviour
         EndDialogue();
     }
 
+    /// <summary>暂停/恢复对话（面板开关时由外部调用）。暂停时打字和输入都停住，恢复后原样继续</summary>
+    public void SetPaused(bool paused)
+    {
+        isPaused = paused;
+    }
+
     /// <summary>运行时改速度：每秒多少字</summary>
     public void SetCharsPerSecond(float value)
     {
@@ -378,7 +394,15 @@ public class DialogueSystem : MonoBehaviour
     {
         if (acceptMouseClick && Input.GetMouseButtonDown(0))
         {
-            return true;
+            // 点在按钮/面板上：这次点击留给 UI，不推进对话
+            bool overUI = ignoreClicksOverUI
+                          && EventSystem.current != null
+                          && EventSystem.current.IsPointerOverGameObject();
+
+            if (!overUI)
+            {
+                return true;
+            }
         }
 
         if (advanceKeys != null)
@@ -393,21 +417,6 @@ public class DialogueSystem : MonoBehaviour
         }
 
         return false;
-    }
-
-    private List<DialogueLine> BuildPlayList(int act)
-    {
-        List<DialogueLine> list = new List<DialogueLine>();
-
-        for (int i = 0; i < allLines.Count; i++)
-        {
-            if (act <= 0 || allLines[i].act == act)
-            {
-                list.Add(allLines[i]);
-            }
-        }
-
-        return list;
     }
 
     private void ShowLine(int index)
@@ -465,6 +474,13 @@ public class DialogueSystem : MonoBehaviour
 
         while (index < full.Length)
         {
+            // 暂停时原地等，不消耗打字进度（用的是 unscaledTime，timeScale 管不到，必须自己停）
+            if (isPaused)
+            {
+                yield return null;
+                continue;
+            }
+
             wait -= DeltaTime;
 
             bool soundPlayedThisFrame = false;
